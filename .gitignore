@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+
+.env
+token.json
+
+.vscode/
+.idea/
+
+data/
+*.csv
+
+*.log
+*.tmp
