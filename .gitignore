@@ -12,3 +12,5 @@ data/
 
 *.log
 *.tmp
+token.json
+zerodhapi.txt
