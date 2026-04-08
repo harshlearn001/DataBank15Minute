@@ -16,6 +16,22 @@ TOKEN_PATH = r"H:\DataBank15Minute\token.json"
 os.makedirs(DATA_PATH, exist_ok=True)
 
 # ==============================
+# USER INPUT MODE
+# ==============================
+user_input = input("Enter start date (YYYY-MM-DD) or press Enter for LIVE mode: ").strip()
+
+if user_input:
+    try:
+        MANUAL_MODE = True
+        MANUAL_START_DATE = datetime.strptime(user_input, "%Y-%m-%d")
+        print(f"📅 Manual mode ON from {MANUAL_START_DATE}")
+    except:
+        print("❌ Invalid date format → LIVE mode")
+        MANUAL_MODE = False
+else:
+    MANUAL_MODE = False
+
+# ==============================
 # LOAD SYMBOLS
 # ==============================
 df_symbols = pd.read_csv(SYMBOL_FILE)
@@ -84,7 +100,7 @@ while True:
         kite = get_kite()
         inst = load_instruments(kite)
     except Exception as e:
-        print("❌ Token / Instrument error:", e)
+        print("❌ Token error:", e)
         time.sleep(300)
         continue
 
@@ -120,12 +136,16 @@ while True:
             print("🧠 Last candle:", last_date)
 
             # ==============================
-            # START DATE
+            # START DATE LOGIC (FIXED)
             # ==============================
-            if last_date is None:
-                start_date = now - timedelta(days=3)
+            if MANUAL_MODE:
+                start_date = MANUAL_START_DATE
+                print("📌 Manual fetch from:", start_date)
             else:
-                start_date = last_date
+                if last_date is None:
+                    start_date = now - timedelta(days=3)
+                else:
+                    start_date = last_date
 
             print("📅 Fetching from:", start_date)
 
@@ -138,20 +158,23 @@ while True:
                 print("⚠️ No new data")
                 continue
 
-            # CLEAN NEW
             df_new["date"] = make_ist(df_new["date"])
             df_new = df_new[["date", "open", "high", "low", "close", "volume"]]
             df_new = clean_df(df_new)
 
-            # ONLY NEW ROWS
+            # ==============================
+            # STRICT FILTER (IMPORTANT)
+            # ==============================
             if last_date is not None:
                 df_new = df_new[df_new["date"] > last_date]
 
             if df_new.empty:
-                print("⚠️ Nothing to append")
+                print("⚠️ Nothing new to append")
                 continue
 
-            # APPEND
+            # ==============================
+            # APPEND SAFE
+            # ==============================
             if not df_old.empty:
                 df = pd.concat([df_old, df_new], ignore_index=True)
             else:
@@ -159,12 +182,16 @@ while True:
 
             df = clean_df(df)
 
+            # ==============================
             # DATA LOSS PROTECTION
+            # ==============================
             if not df_old.empty and len(df) < len(df_old):
-                print("🚨 Data loss detected! Skipping save")
+                print("🚨 Data loss detected! Skip")
                 continue
 
+            # ==============================
             # SAVE
+            # ==============================
             safe_save(df, file_path)
 
             print(f"✅ Appended {len(df_new)} rows | Total: {len(df)}")
